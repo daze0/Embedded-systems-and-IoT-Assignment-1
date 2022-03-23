@@ -10,9 +10,16 @@
 #define GREEN_LED3_PIN 10
 #define GREEN_LED4_PIN 11
 #define T1_BTN_PIN 2
+#define T2_BTN_PIN 3
+#define T3_BTN_PIN 12
+#define T4_BTN_PIN 13
 #define FADE_AMOUNT 0.25
 #define FADING_DELAY 1
 
+/*
+ * Number of leds and buttons.
+ */
+const unsigned int len = 4;
 /*
  * time0, time1, elapsed are used
  * to measure time(ms) elapsed between
@@ -27,6 +34,12 @@ double elapsed;
 float redLedFadeAmount;
 float redLedCurrIntensity;
 /*
+ * T1 button rebound management.
+ */
+unsigned long btnLastTime = 0;
+unsigned long btnCurrentTime;
+unsigned long btnElapsed;
+/*
  * Specifies if game has started or not.
  */
 boolean gameStarted = false;
@@ -40,7 +53,6 @@ unsigned long elapsedFromLastBounce;
 /*
  * Green leds pins bouncing management.
  */
-const unsigned int len = 4;
 const unsigned int greenLedPins[len] = {GREEN_LED1_PIN, GREEN_LED2_PIN, GREEN_LED3_PIN, GREEN_LED4_PIN};
 unsigned int currentGreenLed = 0;
 boolean bounceForward = true;
@@ -52,10 +64,14 @@ unsigned long totalElapsed = 0;
 /*
  * T2 management.
  */
- unsigned long lastRecordedTime;
- unsigned long currentTime2;
- unsigned long elapsedFromLastRecorded;
- unsigned long t2 = 10000; // 10 s
+unsigned long lastRecordedTime;
+unsigned long currentTime2;
+unsigned long elapsedFromLastRecorded;
+unsigned long t2 = 10000; // 10 s
+/*
+ * Score and game buttons management.
+ */
+unsigned int score = 0;
 
 void setup() {
   redLedCurrIntensity = 0;
@@ -107,6 +123,7 @@ void wakeUp() {
   Serial.println("Waking up..");
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(T1_BTN_PIN));
+  btnLastTime = millis();
   attachInterrupt(digitalPinToInterrupt(T1_BTN_PIN), startBouncingLedGame, RISING);
 }
 
@@ -116,18 +133,27 @@ double getCurrentTimeInSeconds() {
 }
 
 void startBouncingLedGame() {
-  gameStarted = true;
+  hasStoppedBouncing = false;
   analogWrite(RED_LED_PIN, 0);
   digitalWrite(GREEN_LED1_PIN, 0);
   digitalWrite(GREEN_LED2_PIN, 0);
   digitalWrite(GREEN_LED3_PIN, 0);
   digitalWrite(GREEN_LED4_PIN, 0);
-  Serial.println("Go!");
-  delay(1000);
-  lastBounceTime = millis(); 
-  startTime = lastBounceTime;
-  digitalWrite(greenLedPins[currentGreenLed], 255);
-  detachInterrupt(digitalPinToInterrupt(T1_BTN_PIN));
+  if (btnLastTime != 0) {
+    btnCurrentTime = millis();
+    btnElapsed = btnCurrentTime - btnLastTime;
+  }
+  if ((btnElapsed > 200) || (btnLastTime == 0)) {
+    Serial.println(String("btnElapsed: ") + btnElapsed);
+    Serial.println(String("btnLastTime: ") + btnLastTime);
+    gameStarted = true;
+    Serial.println("Go!");
+    delay(1000);
+    lastBounceTime = millis(); 
+    startTime = lastBounceTime;
+    digitalWrite(greenLedPins[currentGreenLed], 255);
+    detachInterrupt(digitalPinToInterrupt(T1_BTN_PIN));
+  }
 }
 
 void stopBall() {
@@ -175,17 +201,7 @@ void loop() {
           elapsedFromLastBounce = 0;
         } 
         else {
-          currentTime2 = millis();
-          elapsedFromLastRecorded = currentTime - lastBounceTime;
-          if (elapsedFromLastRecorded >= t2) {
-            //TODO: Game Over
-            Serial.println("Game Over. Final Score: XXX");
-            gameStarted = false;
-          }
-          else {
-            //TODO: do nothing, waiting for button click.
-            //TODO: button interrupt handler has to reset bouncing and change level (F).
-          }
+          
         }
       }
       else {
@@ -193,6 +209,22 @@ void loop() {
       }
     }
     else {
+      Serial.println("User has to press btn");
+      currentTime2 = millis();
+      elapsedFromLastRecorded = currentTime2 - lastRecordedTime;
+      if (elapsedFromLastRecorded >= t2) {
+        //TODO: Game Over
+        Serial.println(String("Game Over. Final Score: ") + score);
+        gameStarted = false;
+        time0 = getCurrentTimeInSeconds();
+        currentGreenLed = 0;
+        //attachInterrupt(digitalPinToInterrupt(T1_BTN_PIN), startBouncingLedGame, RISING);
+      }
+      else {
+        //TODO: do nothing, waiting for button click.
+        
+        //TODO: button interrupt handler has to reset bouncing and change level (F).
+      }
     }
   }
 }
