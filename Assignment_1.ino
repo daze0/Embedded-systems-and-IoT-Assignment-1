@@ -1,8 +1,3 @@
-/*
- * TODOs:
- * - Check repeated block of code inside the super-loop.
- * - Add flags in order to delete repetition, allowing for increased performance.
- */
 #include <EnableInterrupt.h>
 #include <avr/sleep.h>
 #define RED_LED_PIN 9
@@ -18,11 +13,13 @@
 #define FADE_AMOUNT 0.25
 #define FADING_DELAY 1
 #define DEBOUNCE_TIME 200
+#define MIN_TIME 2000 
 
 /*
  * Factor by which T1 and T2 timeouts are shortened.
  */
 unsigned int factor;
+unsigned int limit;
 const unsigned int lenDifficulties = 8;
 const unsigned int difficulties[lenDifficulties] = {50, 100, 200, 400, 800, 1600, 3200, 6400};
 unsigned int currentDifficulty = 0;
@@ -124,7 +121,7 @@ void fadingRedLed() {
  * Sets system sleep mode to SLEEP_MODE_PWR_DOWN.
  */
 void goToDeepSleep() {
-  analogWrite(RED_LED_PIN, 0);
+  digitalWrite(RED_LED_PIN, 0);
   Serial.println("Going to sleep..");
   Serial.flush();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -197,8 +194,9 @@ void pressGameButton(int index) {
     startTime = lastBounceTime;  //Each new level timeout1 is reset.
     currentGreenLed = 0;
     digitalWrite(greenLedPins[currentGreenLed], 255);
-    t1 -= (t1 > factor) ? factor : 0;
-    t2 -= (t2 > factor) ? factor : 0;
+    limit = factor + MIN_TIME;
+    t1 -= (t1 > limit) ? factor : 0;
+    t2 -= (t2 > limit) ? factor : 0;
     Serial.println(String("t1: ") + t1);
     Serial.println(String("t2: ") + t2);
   }
@@ -292,6 +290,7 @@ void loop() {
         gameStarted = false;
         gameOver = false;
         time0 = getCurrentTimeInSeconds();
+        digitalWrite(greenLedPins[currentGreenLed], 0);
         currentGreenLed = 0;
         currentBtnPressed = -1;
         disableInterrupt(T1_BTN_PIN);
