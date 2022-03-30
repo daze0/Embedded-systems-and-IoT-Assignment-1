@@ -13,13 +13,11 @@
 #define FADE_AMOUNT 0.25
 #define FADING_DELAY 1
 #define DEBOUNCE_TIME 200
-#define MIN_TIME 2000 
 
 /*
  * Factor by which T1 and T2 timeouts are shortened.
  */
 unsigned int factor;
-unsigned int limit;
 const unsigned int lenDifficulties = 8;
 const unsigned int difficulties[lenDifficulties] = {50, 100, 200, 400, 800, 1600, 3200, 6400};
 unsigned int currentDifficulty = 0;
@@ -53,7 +51,7 @@ boolean gameStarted = false;
 /*
  * Speed of the bouncing ball.
  */
-const unsigned long ballSpeed = 500;
+const unsigned long ballSpeed = 250;
 unsigned long lastBounceTime;
 unsigned long currentTime;
 unsigned long elapsedFromLastBounce;
@@ -122,8 +120,6 @@ void fadingRedLed() {
  */
 void goToDeepSleep() {
   digitalWrite(RED_LED_PIN, 0);
-  Serial.println("Going to sleep..");
-  Serial.flush();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   sleep_enable();
   disableInterrupt(T1_BTN_PIN);
@@ -138,7 +134,6 @@ void goToDeepSleep() {
  * Disables sleep state and wakes up the system.
  */
 void wakeUp() {
-  Serial.println("Waking up..");
   sleep_disable();
   disableInterrupt(T1_BTN_PIN);
   btnLastTime = millis();
@@ -151,7 +146,6 @@ double getCurrentTimeInSeconds() {
 }
 
 void startBouncingLedGame() {
-  Serial.println(String("Difficulty: ") + factor);
   hasStoppedBouncing = false;
   analogWrite(RED_LED_PIN, 0);
   digitalWrite(GREEN_LED1_PIN, 0);
@@ -163,8 +157,6 @@ void startBouncingLedGame() {
     btnElapsed = btnCurrentTime - btnLastTime;
   }
   if ((btnElapsed > DEBOUNCE_TIME) || (btnLastTime == 0)) {
-    Serial.println(String("btnElapsed: ") + btnElapsed);
-    Serial.println(String("btnLastTime: ") + btnLastTime);
     gameStarted = true;
     Serial.println("Go!");
     delay(1000);
@@ -179,7 +171,6 @@ void startBouncingLedGame() {
 }
 
 void stopBall() {
-  Serial.println("STOPPED BALL");
   hasStoppedBouncing = true;
   digitalWrite(greenLedPins[currentGreenLed], 0);
   lastRecordedTime = millis();
@@ -194,11 +185,8 @@ void pressGameButton(int index) {
     startTime = lastBounceTime;  //Each new level timeout1 is reset.
     currentGreenLed = 0;
     digitalWrite(greenLedPins[currentGreenLed], 255);
-    limit = factor + MIN_TIME;
-    t1 -= (t1 > limit) ? factor : 0;
-    t2 -= (t2 > limit) ? factor : 0;
-    Serial.println(String("t1: ") + t1);
-    Serial.println(String("t2: ") + t2);
+    t1 -= (t1 > factor) ? factor : 0;
+    t2 -= (t2 > factor) ? factor : 0;
   }
   else {
     gameOver = true;
@@ -250,11 +238,8 @@ void loop() {
       possibleFinalTime = currentTime;
       elapsedFromLastBounce = currentTime - lastBounceTime;
       totalElapsed = possibleFinalTime - startTime;
-      Serial.println(totalElapsed);
       if (totalElapsed < t1) {
         if (elapsedFromLastBounce >= ballSpeed) {
-          Serial.println("BOUNCING..");
-          Serial.println(String("elapsed: ") + elapsedFromLastBounce);
           digitalWrite(greenLedPins[currentGreenLed], 0);
           if (currentGreenLed == 3) {
             bounceForward = false;
@@ -280,11 +265,9 @@ void loop() {
       }
     }
     else {
-      Serial.println("User has to press btn");
       currentTime2 = millis();
       elapsedFromLastRecorded = currentTime2 - lastRecordedTime;
       if (elapsedFromLastRecorded >= t2 || gameOver) {
-        //TODO: Game Over
         Serial.println(String("Game Over. Final Score: ") + score);
         score = 0;
         gameStarted = false;
@@ -302,7 +285,6 @@ void loop() {
         t1 = random(10000, 20000);
         t2 = 10000;
       }
-      else {}
     }
   }
 }
